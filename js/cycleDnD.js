@@ -5,38 +5,40 @@ const {h, Rx} = Cycle;
 function intent(interactions) {
     return {
         dragOver$: interactions.get('.project-bin', 'dragover')
-                               .map(eventData => {
-                                    eventData.preventDefault();
-                                    return eventData.dataTransfer.files;
-                                }),
+                           .map(eventData => {
+                                eventData.preventDefault();
+                                return eventData.dataTransfer.files;
+                            }),
         droppedFiles$: interactions.get('.project-bin', 'drop')
-                                  .map(eventData => {
-                                        eventData.preventDefault();
-                                        return eventData.dataTransfer.files;
-                                    })
+                          .map(eventData => {
+                                eventData.preventDefault();
+                                return eventData.dataTransfer.files;
+                            })
     };
 };
 
 function model(intent) {
     return {
         isDragHovering$: intent.dragOver$.map(_ => true)
-                                         .takeUntil(intent.droppedFile$)
-                                         .concat(Rx.Observable.just(false)),
+                             .takeUntil(intent.droppedFile$)
+                             .concat(Rx.Observable.just(false))
+                             .startWith(false),
         items$: intent.droppedFiles$.flatMap(files => {
-                                        const filesArray = [];
-                                        for (var i = 0; i < files.length; i++) {
-                                            filesArray.push(files[i]);
-                                        }
-                                        return Rx.Observable.from(filesArray);
-                                    })
-                                    .map(file => {
-                                        const asset = {
-                                            id: cuid(),
-                                            name: file.name
-                                        };
-                                        return asset;
-                                    })
-                                    .scan(new Map(), (itemMap, item) => itemMap.set(item.id, item))
+                        const filesArray = [];
+                        for (var i = 0; i < files.length; i++) {
+                            filesArray.push(files[i]);
+                        }
+                        return Rx.Observable.from(filesArray);
+                    })
+                    .map(file => {
+                        const asset = {
+                            id: cuid(),
+                            name: file.name
+                        };
+                        return asset;
+                    })
+                    .scan(new Map(), (itemMap, item) => itemMap.set(item.id, item))
+                    .startWith(new Map())
     }
 }
 
