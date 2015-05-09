@@ -1,0 +1,18 @@
+{
+  "name": "cylceDnDPlayground",
+  "description": "An experiment with cycle and drag and drop",
+  "version": "0.0.1",
+  "main": "js/cylceDnD.js",
+  "author": "@danyx23",
+  "license": "mit",
+  "dependencies": {
+    "cyclejs": "latest",
+    "cuid": "latest"
+  },
+  "devDependencies": {
+    "babel": "^5",
+    "babel-core": "^5",
+    "babel-loader": "latest",
+    "webpack": "latest"
+  }
+}
