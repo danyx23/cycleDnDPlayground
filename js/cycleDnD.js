@@ -44,7 +44,6 @@ function model(intent) {
                              .startWith(false),
         items$: intent.droppedFiles$.flatMap(files => {
                         const filesArray = [];
-                        console.log(`Items were dropped: ${files}`)
                         for (var i = 0; i < files.length; i++) {
                             filesArray.push(files[i]);
                         }
@@ -60,7 +59,6 @@ function model(intent) {
                     })
                     .scan([], arrayUpdateHelper)
                     .startWith([])
-                    .tap(items => console.log(`items length is ${items.length}, the last element is ${R.last(items)}`))
     }
 }
 
@@ -68,7 +66,6 @@ function view(model) {
     return Rx.Observable.combineLatest(model.isDragHovering$,
                                        model.items$,
         (isDraghovering, items) => {
-            console.log(items);
             let vItems = items.map(item => {
                 return h('div.project-item', {key: item.id}, [
                     h('img.project-item__image'),
@@ -90,4 +87,3 @@ function app(interactions){
 }
 
 Cycle.applyToDOM('.js-container', app);
-console.log("app initialized");
