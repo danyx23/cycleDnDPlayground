@@ -20,7 +20,7 @@ function intent(interactions) {
 function model(intent) {
     return {
         isDragHovering$: intent.dragOver$.map(_ => true)
-                             .takeUntil(intent.droppedFile$)
+                             .takeUntil(intent.droppedFiles$)
                              .concat(Rx.Observable.just(false))
                              .startWith(false),
         items$: intent.droppedFiles$.flatMap(files => {
@@ -37,8 +37,8 @@ function model(intent) {
                         };
                         return asset;
                     })
-                    .scan(new Map(), (itemMap, item) => itemMap.set(item.id, item))
-                    .startWith(new Map())
+                    .scan([], (itemArray, item) => itemArray.push(item))
+                    .startWith([])
     }
 }
 
@@ -46,7 +46,7 @@ function view(model) {
     return Rx.Observable.combineLatest(model.isDragHovering$,
                                        model.items$,
         (isDraghovering, items) => {
-            const vItems = items.values().map(item => {
+            const vItems = items.map(item => {
                 return h('div.project-item', {key: item.id}, [
                     h('img.project-item__image'),
                     h('div.project-item__name', item.name)
@@ -54,7 +54,7 @@ function view(model) {
             });
 
            return h('div.project-bin', {attributes: {class: isDraghovering ? 'project-bin--hovering' : ''}}, [
-               h('div.project-bin__items', vItems)
+               h('div.project-bin__items', [vItems])
            ]);
         });
 }
