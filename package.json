@@ -7,7 +7,8 @@
   "license": "mit",
   "dependencies": {
     "cyclejs": "latest",
-    "cuid": "latest"
+    "cuid": "latest",
+    "ramda": "latest"
   },
   "devDependencies": {
     "babel": "^5",

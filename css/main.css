@@ -2,6 +2,7 @@
   min-height: 200px;
   width: 100%;
   border: none;
+  background-color: eee;
 }
 .project-bin--hovering {
   border: 1px #00f solid;
