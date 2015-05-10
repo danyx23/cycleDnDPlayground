@@ -36,29 +36,40 @@ function arrayUpdateHelper(itemArray, item) {
 }
 
 function model(intent) {
+    const projectItems$ = intent.droppedFiles$.flatMap(files => {
+        const filesArray = [];
+        for (var i = 0; i < files.length; i++) {
+            filesArray.push(files[i]);
+        }
+        return Rx.Observable.from(filesArray);
+        })
+        .map(file => {
+            const fileReader = new FileReader();
+            const asset = {
+                id: cuid(),
+                name: file.name,
+                progress$: Rx.Observable.fromEvent(fileReader.onprogress)
+                                        .map(e => e.progress)
+                                        .startWith(0),
+                fileLoad$: Rx.Observable.fromEvent(fileReader.onload),
+                fileError$: Rx.Observable.fromEvent(fileReader.onerror)
+            };
+            fileReader.readAsDataURL(file);
+            console.log(`id: ${asset.id}, name: ${asset.name}`);
+            return asset;
+        })
+        .share();
     return {
         isDragHovering$: intent.dragOver$
                              .merge(intent.dragEnter$)
                              .map(_ => true)
                              .merge(intent.droppedFiles$.map(_ => false))
                              .startWith(false),
-        items$: intent.droppedFiles$.flatMap(files => {
-                        const filesArray = [];
-                        for (var i = 0; i < files.length; i++) {
-                            filesArray.push(files[i]);
-                        }
-                        return Rx.Observable.from(filesArray);
-                    })
-                    .map(file => {
-                        const asset = {
-                            id: cuid(),
-                            name: file.name
-                        };
-                        console.log(`id: ${asset.id}, name: ${asset.name}`);
-                        return asset;
-                    })
+        items$: projectItems$
                     .scan([], arrayUpdateHelper)
-                    .startWith([])
+                    .startWith([]),
+        itemChanges$: projectItem$.flatMap(item =>
+                        Rx.Observable.merge(item.progress$, item.fileLoad$, item.fileError$).debounce(200))
     }
 }
 
