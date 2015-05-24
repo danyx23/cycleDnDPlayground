@@ -8,7 +8,8 @@
   "dependencies": {
     "cyclejs": "latest",
     "cuid": "latest",
-    "ramda": "latest"
+    "ramda": "latest",
+    "rx-dom": "latest"
   },
   "devDependencies": {
     "babel": "^5",

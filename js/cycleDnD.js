@@ -2,11 +2,14 @@ import Cycle from 'cyclejs';
 import cuid from 'cuid';
 const {h, Rx} = Cycle;
 import R from 'ramda';
+import Rxdom from 'rx-dom';
 
 Cycle.registerCustomElement('project-item', function (interactions, props) {
     var asset = props.get('asset');
-    var vtree$ = Rx.Observable.combineLatest(asset.progress$, asset.loadedImage$, asset.error$, function (progress, loadedImage, error) {
+    var vtree$ = Rx.Observable.combineLatest(asset.progress$, asset.data$, function (progress, data) {
         let content;
+
+      // how do deal with unified data observable?
 
         if (loadedImage !== null) {
             content = [
@@ -75,25 +78,14 @@ function model(intent) {
         })
         .map(file => {
             const fileReader = new FileReader();
+            const progress$ = new Rx.Subject();
+            const data$ = Rxdom.DOM.fromReader(file, progress$).asDataURL();
             const asset = {
                 id: cuid(),
                 name: file.name,
-                progress$: Rx.Observable.fromEvent(fileReader.onprogress)
-                                        .map(e => {
-                                                if (e.lengthComputable)
-                                                    return (evt.loaded / evt.total);
-                                                else
-                                                    return 0;
-                                            })
-                                        .startWith(0),
-                loadedImage$: Rx.Observable.fromEvent(fileReader.onload)
-                                        .map(e => e.target.result)
-                                        .startWith(null),
-                error$: Rx.Observable.fromEvent(fileReader.onerror)
-                                        .map(e => e.target.error)
-                                        .startWith(null)
+                progress$,
+                data$
             };
-            fileReader.readAsDataURL(file);
             console.log(`id: ${asset.id}, name: ${asset.name}`);
             return asset;
         })
@@ -106,9 +98,7 @@ function model(intent) {
                              .startWith(false),
         items$: projectItems$
                     .scan([], arrayUpdateHelper)
-                    .startWith([]),
-        itemChanges$: projectItem$.flatMap(item =>
-                        Rx.Observable.merge(item.progress$, item.fileLoad$, item.fileError$).debounce(200))
+                    .startWith([])
     }
 }
 
