@@ -5,30 +5,31 @@ import R from 'ramda';
 import Rxdom from 'rx-dom';
 
 Cycle.registerCustomElement('project-item', function (interactions, props) {
-    var asset = props.get('asset');
-    var vtree$ = Rx.Observable.combineLatest(asset.progress$, asset.data$, function (progress, data) {
+    const progress$ = props.get('progress');
+    const data$ = props.get('data');
+    const progressPreprocessed$ = progress$.map(progress => {progress});
+    const dataPreprocessed$ = data$.map(data => {data}).catch(Rx.Observable.just({error: "load failed"}));
+    const vtree$ = Rx.Observable.concat(progressPreprocessed$, dataPreprocessed$).map(op => {
         let content;
 
-      // how do deal with unified data observable?
-
-        if (loadedImage !== null) {
+        if ({data} = op) {
             content = [
                 h('img.project-item__image', {src: loadedImage}),
                 h('div.project-item__name', asset.name)
             ];
         }
-        else if (error !== null) {
+        else if ({error} = op) {
             content = [
                 h('div', 'error')
             ];
         }
-        else {
+        else if ({progress} = op) {
             content = [
                 h('div.project-item__progress', {style: {width: (progress * 100)}})
             ];
         }
 
-        return h('div.project-item', {key: asset.id}, content);
+        return h('div.project-item', content);
     });
 
     return {
@@ -71,15 +72,20 @@ function arrayUpdateHelper(itemArray, item) {
 function model(intent) {
     const projectItems$ = intent.droppedFiles$.flatMap(files => {
         const filesArray = [];
-        for (var i = 0; i < files.length; i++) {
+        for (let i = 0; i < files.length; i++) {
             filesArray.push(files[i]);
         }
         return Rx.Observable.from(filesArray);
         })
         .map(file => {
-            const fileReader = new FileReader();
-            const progress$ = new Rx.Subject();
+            const progressRaw$ = new Rx.Subject();
             const data$ = Rxdom.DOM.fromReader(file, progress$).asDataURL();
+            const progress$ = progressRaw$.map(e => {
+              if (e.lengthComputable)
+                return e.loaded / e.total;
+              else
+                return 0;
+            });
             const asset = {
                 id: cuid(),
                 name: file.name,
@@ -110,7 +116,7 @@ function view(model) {
             if (items.length === 0)
                 vItems = h('div', 'drop files here');
             else
-                vItems = items.map(item => h('project-item', {asset: item}));
+                vItems = items.map(item => h('project-item', {key: item.id, progress: item.progress$, data: item.data$}));
 
            return h('div', {attributes: {class: isDraghovering ? 'project-bin--hovering project-bin' : 'project-bin'}}, [
                h('div.project-bin__items', [vItems])
