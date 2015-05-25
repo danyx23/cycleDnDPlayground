@@ -5,32 +5,38 @@ import R from 'ramda';
 import Rxdom from 'rx-dom';
 
 Cycle.registerCustomElement('project-item', function (interactions, props) {
-    const progress$ = props.get('progress');
-    const data$ = props.get('data');
-    const progressPreprocessed$ = progress$.map(progress => {progress});
-    const dataPreprocessed$ = data$.map(data => {data}).catch(Rx.Observable.just({error: "load failed"}));
-    const vtree$ = Rx.Observable.concat(progressPreprocessed$, dataPreprocessed$).map(op => {
-        let content;
+    const asset$ = props.get('asset');
+    const vtree$ = asset$
+                    .flatMap(asset => {
+                      const progress$ = asset.progress$;
+                      const data$ = asset.data$;
+                      const progressPreprocessed$ = progress$.map(progress => {progress});
+                      const dataPreprocessed$ = data$.map(data => {data}).catch(Rx.Observable.just({error: "load failed"}));
+                      return Rx.Observable.concat(progressPreprocessed$, dataPreprocessed$);
+                    })
+                    .map(op => {
+                        let content;
 
-        if ({data} = op) {
-            content = [
-                h('img.project-item__image', {src: loadedImage}),
-                h('div.project-item__name', asset.name)
-            ];
-        }
-        else if ({error} = op) {
-            content = [
-                h('div', 'error')
-            ];
-        }
-        else if ({progress} = op) {
-            content = [
-                h('div.project-item__progress', {style: {width: (progress * 100)}})
-            ];
-        }
-
-        return h('div.project-item', content);
-    });
+                        if (op !== undefined) {
+                          if ({data} = op) {
+                            content = [
+                              h('img.project-item__image', {src: data}),
+                              //h('div.project-item__name', asset.name)
+                            ];
+                          }
+                          else if ({error} = op) {
+                            content = [
+                              h('div', 'error')
+                            ];
+                          }
+                          else if ({progress} = op) {
+                            content = [
+                              h('div.project-item__progress', {style: {width: (progress * 100)}})
+                            ];
+                          }
+                        }
+                        return h('div.project-item', content);
+                      });
 
     return {
         vtree$: vtree$
@@ -116,7 +122,7 @@ function view(model) {
             if (items.length === 0)
                 vItems = h('div', 'drop files here');
             else
-                vItems = items.map(item => h('project-item', {key: item.id, progress: item.progress$, data: item.data$}));
+                vItems = items.map(item => h('project-item', {key: item.id, asset: item}));
 
            return h('div', {attributes: {class: isDraghovering ? 'project-bin--hovering project-bin' : 'project-bin'}}, [
                h('div.project-bin__items', [vItems])
