@@ -13,8 +13,7 @@ Cycle.registerCustomElement('project-item', function (interactions, props) {
                       const progressPreprocessed$ = progress$.map(progress => {return {progress};});
                       const dataPreprocessed$ = data$.map(data => { return {data};})
                                                      .catch(Rx.Observable.just({err: "load failed"}));
-                      //return Rx.Observable.concat(progressPreprocessed$, dataPreprocessed$);
-                      return dataPreprocessed$;
+                      return Rx.Observable.merge(progressPreprocessed$, dataPreprocessed$);
                     })
                     .map(op => {
                         let content;
