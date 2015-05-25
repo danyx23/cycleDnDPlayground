@@ -10,26 +10,29 @@ Cycle.registerCustomElement('project-item', function (interactions, props) {
                     .flatMap(asset => {
                       const progress$ = asset.progress$;
                       const data$ = asset.data$;
-                      const progressPreprocessed$ = progress$.map(progress => {progress});
-                      const dataPreprocessed$ = data$.map(data => {data}).catch(Rx.Observable.just({error: "load failed"}));
-                      return Rx.Observable.concat(progressPreprocessed$, dataPreprocessed$);
+                      const progressPreprocessed$ = progress$.map(progress => {return {progress};});
+                      const dataPreprocessed$ = data$.map(data => { return {data};})
+                                                     .catch(Rx.Observable.just({err: "load failed"}));
+                      //return Rx.Observable.concat(progressPreprocessed$, dataPreprocessed$);
+                      return dataPreprocessed$;
                     })
                     .map(op => {
                         let content;
 
                         if (op !== undefined) {
-                          if ({data} = op) {
+                          const {data, err, progress} = op;
+                          if (data !== undefined) {
                             content = [
                               h('img.project-item__image', {src: data}),
                               //h('div.project-item__name', asset.name)
                             ];
                           }
-                          else if ({error} = op) {
+                          else if (err !== undefined) {
                             content = [
                               h('div', 'error')
                             ];
                           }
-                          else if ({progress} = op) {
+                          else if (progress !== undefined) {
                             content = [
                               h('div.project-item__progress', {style: {width: (progress * 100)}})
                             ];
