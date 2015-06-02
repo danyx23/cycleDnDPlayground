@@ -1,7 +1,7 @@
 import Cycle from 'cyclejs';
 import cuid from 'cuid';
 const {h, Rx} = Cycle;
-import R from 'ramda';
+import Immutable from 'immutable';
 
 function intent(interactions) {
     return {
@@ -29,12 +29,6 @@ function intent(interactions) {
     };
 };
 
-function arrayUpdateHelper(itemArray, item) {
-    const arrayCopy = itemArray.slice();
-    arrayCopy.push(item);
-    return arrayCopy;
-}
-
 function model(intent) {
     return {
         isDragHovering$: intent.dragOver$
@@ -57,7 +51,7 @@ function model(intent) {
                         console.log(`id: ${asset.id}, name: ${asset.name}`);
                         return asset;
                     })
-                    .scan([], arrayUpdateHelper)
+                    .scan(Immutable.List(), (list, item) => list.push(item))
                     .startWith([])
     }
 }
@@ -73,7 +67,7 @@ function view(model) {
                 ]);
             });
 
-            if (items.length === 0)
+            if (items.size === 0)
                 vItems = h('div', 'drop files here');
 
            return h('div', {attributes: {class: isDraghovering ? 'project-bin--hovering project-bin' : 'project-bin'}}, [
