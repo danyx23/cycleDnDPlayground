@@ -1,10 +1,11 @@
 import Cycle from 'cyclejs';
-import cuid from 'cuid';
 const {h, Rx} = Cycle;
+import cuid from 'cuid';
 import Immutable from 'immutable';
 import Rxdom from 'rx-dom';
 
 Cycle.registerCustomElement('project-item', function (interactions, props) {
+    const dragStart$ = interactions.get('.project-item', 'dragstart').tap(_ => console.log("drag started"));
     const asset$ = props.get('asset');
     const vtree$ = asset$
                     .flatMap(asset => {
@@ -22,7 +23,7 @@ Cycle.registerCustomElement('project-item', function (interactions, props) {
                           const {data, err, progress} = op;
                           if (data !== undefined) {
                             content = [
-                              h('img.project-item__image', {src: data}),
+                              h('img.project-item__image', {src: data})
                               //h('div.project-item__name', asset.name)
                             ];
                           }
@@ -33,7 +34,7 @@ Cycle.registerCustomElement('project-item', function (interactions, props) {
                           }
                           else if (progress !== undefined) {
                             content = [
-                              h('div.project-item__progress', {style: {width: (progress * 100)}})
+                              h('div.project-item__progress', {style: {width: (progress * 100), color: "black"}})
                             ];
                           }
                         }
@@ -41,40 +42,64 @@ Cycle.registerCustomElement('project-item', function (interactions, props) {
                       });
 
     return {
-        vtree$: vtree$
+        vtree$,
+        dragStart$
     };
 });
 
+//Cylce.registerCustomElement('image-timeline', function(interactions, props) {
+//    const asset$ = props.get('clips');
+//});
+
 function intent(interactions) {
+    const projectBinDragEnter$ = interactions.get('.project-bin', 'dragenter')
+        .map(eventData => {
+            eventData.stopPropagation();
+            eventData.preventDefault();
+            return eventData;
+        });
+    const projectBinDragEnterFiles$ = projectBinDragEnter$
+        .filter(eventData => eventData.dataTransfer.files.length > 0)
+        .map(eventData => {
+            eventData.dataTransfer.dropEffect = 'copy';
+            return eventData.dataTransfer.files;
+        });
+
+    const projectBinDragLeave$ = interactions.get('.project-bin', 'dragleave')
+        .map(_ => true);
+
+    const projectBinDragOver$ = interactions.get('.project-bin', 'dragover')
+        .map(eventData => {
+            eventData.stopPropagation();
+            eventData.preventDefault();
+            return eventData;
+        });
+    const projectBinDragOverFiles$ = projectBinDragOver$
+        .filter(eventData => eventData.dataTransfer.files.length > 0)
+        .map(eventData => {
+            eventData.dataTransfer.dropEffect = 'copy';
+            return eventData.dataTransfer.files;
+        });
+
+    const projectBinDropped$ = interactions.get('.project-bin', 'drop')
+        .map(eventData => {
+            eventData.stopPropagation();
+            eventData.preventDefault();
+            return eventData;
+        });
+    const projectBinDroppedFiles$ = projectBinDropped$
+        .filter(eventData => eventData.dataTransfer.files.length > 0)
+        .map(eventData => eventData.dataTransfer.files);
     return {
-        dragEnter$: interactions.get('.project-bin', 'dragenter')
-                            .map(eventData => {
-                                eventData.stopPropagation();
-                                eventData.preventDefault();
-                                eventData.dataTransfer.dropEffect = 'copy';
-                                return eventData.dataTransfer.files;
-                            }),
-        dragLeave$: interactions.get('.project-bin', 'dragleave')
-                            .map(_ => true),
-        dragOver$: interactions.get('.project-bin', 'dragover')
-                           .map(eventData => {
-                                eventData.stopPropagation();
-                                eventData.preventDefault();
-                                eventData.dataTransfer.dropEffect = 'copy';
-                                return eventData.dataTransfer.files;
-                            }),
-        droppedFiles$: interactions.get('.project-bin', 'drop')
-                          .map(eventData => {
-                                eventData.stopPropagation();
-                                eventData.preventDefault();
-                                return eventData.dataTransfer.files;
-                            })
-                           .share()
+        projectBinDragEnterFiles$,
+        projectBinDragOverFiles$,
+        projectBinDragLeave$,
+        projectBinDroppedFiles$
     };
 };
 
 function model(intent) {
-    const projectItems$ = intent.droppedFiles$.flatMap(files => {
+    const projectItems$ = intent.projectBinDroppedFiles$.flatMap(files => {
         const filesArray = [];
         for (let i = 0; i < files.length; i++) {
             filesArray.push(files[i]);
@@ -101,11 +126,11 @@ function model(intent) {
         })
         .share();
     return {
-        isDragHovering$: intent.dragOver$
-                             .merge(intent.dragEnter$)
+        isDragHovering$: intent.projectBinDragOverFiles$
+                             .merge(intent.projectBinDragEnterFiles$)
                              .map(_ => true)
-                             .merge(intent.droppedFiles$.map(_ => false))
-                             .merge(intent.dragLeave$.map(_ => false))
+                             .merge(intent.projectBinDroppedFiles$.map(_ => false))
+                             .merge(intent.projectBinDragLeave$.map(_ => false))
                              .startWith(false),
         items$: projectItems$
                     .scan(Immutable.List(), (list, item) => list.push(item))
@@ -121,7 +146,7 @@ function view(model) {
             if (items.size === 0)
                 vItems = h('div', 'drop files here');
             else
-                vItems = items.map(item => h('project-item', {key: item.id, asset: item}, [])).toArray();
+                vItems = items.map(item => h('project-item.project-item', {key: item.id, asset: item}, [])).toArray();
 
            return h('div', {attributes: {class: isDraghovering ? 'project-bin--hovering project-bin' : 'project-bin'}}, [
                h('div.project-bin__items', vItems)
