@@ -106,7 +106,7 @@ function model(intent) {
                              .startWith(false),
         items$: projectItems$
                     .scan(Immutable.List(), (list, item) => list.push(item))
-                    .startWith([])
+                    .startWith(Immutable.List())
     }
 }
 
@@ -118,10 +118,10 @@ function view(model) {
             if (items.size === 0)
                 vItems = h('div', 'drop files here');
             else
-                vItems = items.map(item => h('project-item', {key: item.id, asset: item}));
+                vItems = items.map(item => h('project-item', {key: item.id, asset: item}, [])).toArray();
 
            return h('div', {attributes: {class: isDraghovering ? 'project-bin--hovering project-bin' : 'project-bin'}}, [
-               h('div.project-bin__items', [vItems])
+               h('div.project-bin__items', vItems)
            ]);
         });
 }
