@@ -54,6 +54,8 @@ function intent(interactions) {
                                 eventData.dataTransfer.dropEffect = 'copy';
                                 return eventData.dataTransfer.files;
                             }),
+        dragLeave$: interactions.get('.project-bin', 'dragleave')
+                            .map(_ => true),
         dragOver$: interactions.get('.project-bin', 'dragover')
                            .map(eventData => {
                                 eventData.stopPropagation();
@@ -103,6 +105,7 @@ function model(intent) {
                              .merge(intent.dragEnter$)
                              .map(_ => true)
                              .merge(intent.droppedFiles$.map(_ => false))
+                             .merge(intent.dragLeave$.map(_ => false))
                              .startWith(false),
         items$: projectItems$
                     .scan(Immutable.List(), (list, item) => list.push(item))
