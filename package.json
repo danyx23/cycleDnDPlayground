@@ -9,7 +9,8 @@
     "cyclejs": "latest",
     "cuid": "latest",
     "ramda": "latest",
-    "rx-dom": "latest"
+    "rx-dom": "latest",
+    "immutable": "latest"
   },
   "devDependencies": {
     "babel": "^5",

@@ -1,7 +1,7 @@
 import Cycle from 'cyclejs';
 import cuid from 'cuid';
 const {h, Rx} = Cycle;
-import R from 'ramda';
+import Immutable from 'immutable';
 import Rxdom from 'rx-dom';
 
 Cycle.registerCustomElement('project-item', function (interactions, props) {
@@ -62,12 +62,6 @@ function intent(interactions) {
     };
 };
 
-function arrayUpdateHelper(itemArray, item) {
-    const arrayCopy = itemArray.slice();
-    arrayCopy.push(item);
-    return arrayCopy;
-}
-
 function model(intent) {
     const projectItems$ = intent.droppedFiles$.flatMap(files => {
         const filesArray = [];
@@ -97,7 +91,7 @@ function model(intent) {
                              .merge(intent.droppedFiles$.map(_ => false))
                              .startWith(false),
         items$: projectItems$
-                    .scan([], arrayUpdateHelper)
+                    .scan(Immutable.List(), (list, item) => list.push(item))
                     .startWith([])
     }
 }
@@ -107,7 +101,7 @@ function view(model) {
                                        model.items$,
         (isDraghovering, items) => {
             let vItems;
-            if (items.length === 0)
+            if (items.size === 0)
                 vItems = h('div', 'drop files here');
             else
                 vItems = items.map(item => h('project-item', {asset: item}));
