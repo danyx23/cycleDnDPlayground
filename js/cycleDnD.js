@@ -5,31 +5,40 @@ import Immutable from 'immutable';
 import Rxdom from 'rx-dom';
 
 Cycle.registerCustomElement('project-item', function (interactions, props) {
-    var asset = props.get('asset');
-    var vtree$ = Rx.Observable.combineLatest(asset.progress$, asset.data$, function (progress, data) {
-        let content;
+    const asset$ = props.get('asset');
+    const vtree$ = asset$
+                    .flatMap(asset => {
+                      const progress$ = asset.progress$;
+                      const data$ = asset.data$;
+                      const progressPreprocessed$ = progress$.map(progress => {return {progress};});
+                      const dataPreprocessed$ = data$.map(data => { return {data};})
+                                                     .catch(Rx.Observable.just({err: "load failed"}));
+                      return Rx.Observable.merge(progressPreprocessed$, dataPreprocessed$);
+                    })
+                    .map(op => {
+                        let content;
 
-      // how do deal with unified data observable?
-
-        if (loadedImage !== null) {
-            content = [
-                h('img.project-item__image', {src: loadedImage}),
-                h('div.project-item__name', asset.name)
-            ];
-        }
-        else if (error !== null) {
-            content = [
-                h('div', 'error')
-            ];
-        }
-        else {
-            content = [
-                h('div.project-item__progress', {style: {width: (progress * 100)}})
-            ];
-        }
-
-        return h('div.project-item', {key: asset.id}, content);
-    });
+                        if (op !== undefined) {
+                          const {data, err, progress} = op;
+                          if (data !== undefined) {
+                            content = [
+                              h('img.project-item__image', {src: data}),
+                              //h('div.project-item__name', asset.name)
+                            ];
+                          }
+                          else if (err !== undefined) {
+                            content = [
+                              h('div', 'error')
+                            ];
+                          }
+                          else if (progress !== undefined) {
+                            content = [
+                              h('div.project-item__progress', {style: {width: (progress * 100)}})
+                            ];
+                          }
+                        }
+                        return h('div.project-item', content);
+                      });
 
     return {
         vtree$: vtree$
@@ -65,15 +74,20 @@ function intent(interactions) {
 function model(intent) {
     const projectItems$ = intent.droppedFiles$.flatMap(files => {
         const filesArray = [];
-        for (var i = 0; i < files.length; i++) {
+        for (let i = 0; i < files.length; i++) {
             filesArray.push(files[i]);
         }
         return Rx.Observable.from(filesArray);
         })
         .map(file => {
-            const fileReader = new FileReader();
-            const progress$ = new Rx.Subject();
+            const progressRaw$ = new Rx.Subject();
             const data$ = Rxdom.DOM.fromReader(file, progress$).asDataURL();
+            const progress$ = progressRaw$.map(e => {
+              if (e.lengthComputable)
+                return e.loaded / e.total;
+              else
+                return 0;
+            });
             const asset = {
                 id: cuid(),
                 name: file.name,
@@ -104,7 +118,7 @@ function view(model) {
             if (items.size === 0)
                 vItems = h('div', 'drop files here');
             else
-                vItems = items.map(item => h('project-item', {asset: item}));
+                vItems = items.map(item => h('project-item', {key: item.id, asset: item}));
 
            return h('div', {attributes: {class: isDraghovering ? 'project-bin--hovering project-bin' : 'project-bin'}}, [
                h('div.project-bin__items', [vItems])

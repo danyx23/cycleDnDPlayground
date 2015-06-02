@@ -21,3 +21,7 @@ body {
   border: 1px #808080 solid;
   line-heigt: 200px;
 }
+.project-item > img {
+  max-width: 100%;
+  max-height: 100%;
+}
