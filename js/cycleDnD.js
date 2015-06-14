@@ -4,9 +4,9 @@ import cuid from 'cuid';
 import Immutable from 'immutable';
 import Rxdom from 'rx-dom';
 
-Cycle.registerCustomElement('project-item', function (interactions, props) {
-    const dragStart$ = interactions.get('.project-item', 'dragstart').tap(_ => console.log("drag started"));
-    const asset$ = props.get('asset');
+function projectItemComponent(drivers) {
+    const dragStart$ = drivers.get('DOM', '.project-item', 'dragstart').tap(_ => console.log("drag started"));
+    const asset$ = drivers.get('props', 'asset');
     const vtree$ = asset$
                     .flatMap(asset => {
                       const progress$ = asset.progress$;
@@ -42,33 +42,35 @@ Cycle.registerCustomElement('project-item', function (interactions, props) {
                       });
 
     return {
-        vtree$,
-        dragStart$
+        DOM: vtree$,
+        events: {
+          dragStart: dragStart$
+        }
     };
-});
+}
 
 //Cylce.registerCustomElement('image-timeline', function(interactions, props) {
 //    const asset$ = props.get('clips');
 //});
 
-function intent(interactions) {
-    const projectBinDragEnter$ = interactions.get('.project-bin', 'dragenter')
+function intent(drivers) {
+    const projectBinDragEnter$ = drivers.get('DOM', '.project-bin', 'dragenter')
         .map(eventData => {
             eventData.stopPropagation();
             eventData.preventDefault();
             return eventData;
         });
     const projectBinDragEnterFiles$ = projectBinDragEnter$
-        .filter(eventData => eventData.dataTransfer.files.length > 0)
+        //.filter(eventData => eventData.dataTransfer.files.length > 0)
         .map(eventData => {
             eventData.dataTransfer.dropEffect = 'copy';
             return eventData.dataTransfer.files;
         });
 
-    const projectBinDragLeave$ = interactions.get('.project-bin', 'dragleave')
+    const projectBinDragLeave$ = drivers.get('DOM', '.project-bin', 'dragleave')
         .map(_ => true);
 
-    const projectBinDragOver$ = interactions.get('.project-bin', 'dragover')
+    const projectBinDragOver$ = drivers.get('DOM', '.project-bin', 'dragover')
         .map(eventData => {
             eventData.stopPropagation();
             eventData.preventDefault();
@@ -81,12 +83,13 @@ function intent(interactions) {
             return eventData.dataTransfer.files;
         });
 
-    const projectBinDropped$ = interactions.get('.project-bin', 'drop')
+    const projectBinDropped$ = drivers.get('DOM', '.project-bin', 'drop')
         .map(eventData => {
             eventData.stopPropagation();
             eventData.preventDefault();
             return eventData;
-        });
+        })
+        .share();
     const projectBinDroppedFiles$ = projectBinDropped$
         .filter(eventData => eventData.dataTransfer.files.length > 0)
         .map(eventData => eventData.dataTransfer.files);
@@ -96,19 +99,20 @@ function intent(interactions) {
         projectBinDragLeave$,
         projectBinDroppedFiles$
     };
-};
+}
 
 function model(intent) {
-    const projectItems$ = intent.projectBinDroppedFiles$.flatMap(files => {
-        const filesArray = [];
-        for (let i = 0; i < files.length; i++) {
-            filesArray.push(files[i]);
-        }
-        return Rx.Observable.from(filesArray);
-        })
+    const projectItems$ = intent.projectBinDroppedFiles$
+        .flatMap(files => {
+            const filesArray = [];
+            for (let i = 0; i < files.length; i++) {
+                filesArray.push(files[i]);
+            }
+            return Rx.Observable.from(filesArray);
+            })
         .map(file => {
             const progressRaw$ = new Rx.Subject();
-            const data$ = Rxdom.DOM.fromReader(file, progress$).asDataURL();
+            const data$ = Rxdom.DOM.fromReader(file, progressRaw$).asDataURL();
             const progress$ = progressRaw$.map(e => {
               if (e.lengthComputable)
                 return e.loaded / e.total;
@@ -123,8 +127,7 @@ function model(intent) {
             };
             console.log(`id: ${asset.id}, name: ${asset.name}`);
             return asset;
-        })
-        .share();
+        });
     return {
         isDragHovering$: intent.projectBinDragOverFiles$
                              .merge(intent.projectBinDragEnterFiles$)
@@ -154,8 +157,15 @@ function view(model) {
         });
 }
 
-function app(interactions){
-    return view(model(intent(interactions)));
+function app(drivers){
+  const vtree$ = view(model(intent(drivers)));
+  return {
+    DOM: vtree$
+  };
 }
 
-Cycle.applyToDOM('.js-container', app);
+Cycle.run(app, {
+  DOM: Cycle.makeDOMDriver('.js-container', {
+    'project-item': projectItemComponent
+  })
+});
