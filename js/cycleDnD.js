@@ -5,8 +5,8 @@ import Immutable from 'immutable';
 import Rxdom from 'rx-dom';
 
 function projectItemComponent(drivers) {
-    const dragStart$ = drivers.get('DOM', '.project-item', 'dragstart').tap(_ => console.log("drag started"));
-    const asset$ = drivers.get('props', 'asset');
+    const dragStart$ = drivers.DOM.get('.project-item', 'dragstart').tap(_ => console.log("drag started"));
+    const asset$ = drivers.props.get('asset');
     const vtree$ = asset$
                     .flatMap(asset => {
                       const progress$ = asset.progress$;
@@ -54,7 +54,7 @@ function projectItemComponent(drivers) {
 //});
 
 function intent(drivers) {
-    const projectBinDragEnter$ = drivers.get('DOM', '.project-bin', 'dragenter')
+    const projectBinDragEnter$ = drivers.DOM.get('.project-bin', 'dragenter')
         .map(eventData => {
             eventData.stopPropagation();
             eventData.preventDefault();
@@ -67,10 +67,10 @@ function intent(drivers) {
             return eventData.dataTransfer.files;
         });
 
-    const projectBinDragLeave$ = drivers.get('DOM', '.project-bin', 'dragleave')
+    const projectBinDragLeave$ = drivers.DOM.get('.project-bin', 'dragleave')
         .map(_ => true);
 
-    const projectBinDragOver$ = drivers.get('DOM', '.project-bin', 'dragover')
+    const projectBinDragOver$ = drivers.DOM.get('.project-bin', 'dragover')
         .map(eventData => {
             eventData.stopPropagation();
             eventData.preventDefault();
@@ -83,7 +83,7 @@ function intent(drivers) {
             return eventData.dataTransfer.files;
         });
 
-    const projectBinDropped$ = drivers.get('DOM', '.project-bin', 'drop')
+    const projectBinDropped$ = drivers.DOM.get('.project-bin', 'drop')
         .map(eventData => {
             eventData.stopPropagation();
             eventData.preventDefault();
