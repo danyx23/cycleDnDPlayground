@@ -6,6 +6,8 @@ import Rxdom from 'rx-dom';
 
 const projectItemDataType = "dragged-item-id";
 
+const AssetRecord = Immutable.Record({id:"BADFOOD", name: "BADFOOD", progress$: null, data$: null });
+
 function projectItemComponent(drivers) {
     const dragStart$ = drivers.DOM.get('.project-item', 'dragstart')
                                   .withLatestFrom(drivers.props.get('asset'), (dragEventData, asset) => { return {dragEventData, key: asset.id}})
@@ -62,20 +64,48 @@ function timelineComponent(drivers) {
         .map(eventData => {
             eventData.stopPropagation();
             eventData.preventDefault();
+            eventData.dataTransfer.dropEffect = 'copy';
             return eventData.dataTransfer.getData(projectItemDataType);
         })
         .filter(idString => idString);
 
-    const clips$ = timelineDragEnter$
+    const timelineDragOver$ = drivers.DOM.get('.timeline', 'dragover')
+        .map(eventData => {
+            eventData.stopPropagation();
+            eventData.preventDefault();
+            eventData.dataTransfer.dropEffect = 'copy';
+            return eventData.dataTransfer.getData(projectItemDataType);
+        })
+        .filter(idString => idString);
+
+    const timelineDragLeave$ = drivers.DOM.get('.timeline', 'dragleave')
+        .map(_ => true);
+
+    const timelineDrop$ = drivers.DOM.get('.timeline', 'drop')
+        .map(eventData => {
+            eventData.stopPropagation();
+            eventData.preventDefault();
+            return eventData.dataTransfer.getData(projectItemDataType);
+        })
+        .filter(idString => idString);
+
+    const isDragHovering$= timelineDragEnter$
+        .merge(timelineDragOver$)
+        .map(_ => true)
+        .merge(timelineDragLeave$.map(_ => false))
+        .merge(timelineDrop$.map(_ => false))
+        .startWith(false);
+
+    const clips$ = timelineDrop$
                          .scan(Immutable.List(), (list, item) => list.push(item))
                          .startWith(Immutable.List());
 
     const vtree$ = Rx.Observable
-                    .combineLatest(projectItems$, clips$, (projectItems, clips) =>
+                    .combineLatest(projectItems$, clips$, isDragHovering$, (projectItems, clips, isDraghovering) =>
                                     {
                                         let clipCounter = 0;
-                                        clipsDom = clips.map(item => h('div.timeline-clip', {key: clipCounter++}, [h('img.timeline-clip-image', {src: projectItems.get(item)})])).toArray();
-                                        return h('div.timeline', clipsDom);
+                                        const clipsDom = clips.map(item => h('div.timeline-clip', {key: clipCounter++}, [h('img.timeline-clip-image', {src: projectItems.get(item)})])).toArray();
+                                        return h('div.timeline', {attributes: {class: isDraghovering ? 'timeline--hovering' : ''}}, clipsDom);
                                     });
 
     return {
@@ -149,12 +179,12 @@ function model(intent) {
               else
                 return 0;
             });
-            const asset = {
+            const asset = new AssetRecord({
                 id: cuid(),
                 name: file.name,
                 progress$,
                 data$
-            };
+            });
             console.log(`id: ${asset.id}, name: ${asset.name}`);
             return asset;
         });
@@ -185,8 +215,8 @@ function view(model) {
            return h('div.slideshow', [
                h('div', {attributes: {class: isDraghovering ? 'project-bin--hovering project-bin' : 'project-bin'}}, [
                 h('div.project-bin__items', vItems)
-               ])/*,
-               h('timeline.timeline', {key: 1})*/
+               ]),
+               h('timeline.timeline', {key: 1, projectItems: items})
                ]);
         });
 }

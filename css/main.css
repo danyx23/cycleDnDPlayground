@@ -6,7 +6,6 @@ body {
   width: 100%;
   border: none;
   background-color: eee;
-  draggable: true;
 }
 .project-bin--hovering {
   border: 1px #add8e6 solid;
@@ -21,6 +20,7 @@ body {
   background-color: ccc;
   border: 1px #808080 solid;
   line-heigt: 200px;
+  draggable: true;
 }
 .project-item > img {
   max-width: 100%;
@@ -30,4 +30,12 @@ body {
   height: 200px;
   width: 100%;
   background-color: #aaa;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+}
+.timeline .timeline-clip {
+  flex: auto;
+  width: 10%;
 }
