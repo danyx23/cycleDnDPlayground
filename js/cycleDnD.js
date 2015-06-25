@@ -4,8 +4,14 @@ import cuid from 'cuid';
 import Immutable from 'immutable';
 import Rxdom from 'rx-dom';
 
+const projectItemDataType = "dragged-item-id";
+
 function projectItemComponent(drivers) {
-    const dragStart$ = drivers.DOM.get('.project-item', 'dragstart').tap(_ => console.log("drag started"));
+    const dragStart$ = drivers.DOM.get('.project-item', 'dragstart')
+                                  .withLatestFrom(drivers.props.get('asset'), (dragEventData, asset) => { return {dragEventData, key: asset.id}})
+                                  .tap(eventDataAndKey => eventDataAndKey.dragEventData.dataTransfer.setData(projectItemDataType, eventDataAndKey.key))
+                                  .select(eventDataAndKey => eventDataAndKey.key)
+                                  .tap(key => console.log("drag started with element" + key));
     const asset$ = drivers.props.get('asset');
     const vtree$ = asset$
                     .flatMap(asset => {
@@ -49,9 +55,33 @@ function projectItemComponent(drivers) {
     };
 }
 
-//Cylce.registerCustomElement('image-timeline', function(interactions, props) {
-//    const asset$ = props.get('clips');
-//});
+function timelineComponent(drivers) {
+    const projectItems$ = drivers.props.get('projectItems');
+
+    const timelineDragEnter$ = drivers.DOM.get('.timeline', 'dragenter')
+        .map(eventData => {
+            eventData.stopPropagation();
+            eventData.preventDefault();
+            return eventData.dataTransfer.getData(projectItemDataType);
+        })
+        .filter(idString => idString);
+
+    const clips$ = timelineDragEnter$
+                         .scan(Immutable.List(), (list, item) => list.push(item))
+                         .startWith(Immutable.List());
+
+    const vtree$ = Rx.Observable
+                    .combineLatest(projectItems$, clips$, (projectItems, clips) =>
+                                    {
+                                        let clipCounter = 0;
+                                        clipsDom = clips.map(item => h('div.timeline-clip', {key: clipCounter++}, [h('img.timeline-clip-image', {src: projectItems.get(item)})])).toArray();
+                                        return h('div.timeline', clipsDom);
+                                    });
+
+    return {
+        DOM: vtree$
+    };
+}
 
 function intent(drivers) {
     const projectBinDragEnter$ = drivers.DOM.get('.project-bin', 'dragenter')
@@ -136,8 +166,9 @@ function model(intent) {
                              .merge(intent.projectBinDragLeave$.map(_ => false))
                              .startWith(false),
         items$: projectItems$
-                    .scan(Immutable.List(), (list, item) => list.push(item))
-                    .startWith(Immutable.List())
+                    .scan(Immutable.Map(), (map, item) => map.merge({[item.id]: item}))
+                    .tap(map => console.log(map))
+                    .startWith(Immutable.Map())
     }
 }
 
@@ -149,11 +180,14 @@ function view(model) {
             if (items.size === 0)
                 vItems = h('div', 'drop files here');
             else
-                vItems = items.map(item => h('project-item.project-item', {key: item.id, asset: item}, [])).toArray();
+                vItems = items.map((item) => h('project-item.project-item', {key: item.id, asset: item}, [])).toArray();
 
-           return h('div', {attributes: {class: isDraghovering ? 'project-bin--hovering project-bin' : 'project-bin'}}, [
-               h('div.project-bin__items', vItems)
-           ]);
+           return h('div.slideshow', [
+               h('div', {attributes: {class: isDraghovering ? 'project-bin--hovering project-bin' : 'project-bin'}}, [
+                h('div.project-bin__items', vItems)
+               ])/*,
+               h('timeline.timeline', {key: 1})*/
+               ]);
         });
 }
 
@@ -166,6 +200,7 @@ function app(drivers){
 
 Cycle.run(app, {
   DOM: Cycle.makeDOMDriver('.js-container', {
-    'project-item': projectItemComponent
+    'project-item': projectItemComponent,
+    'timeline': timelineComponent
   })
 });
